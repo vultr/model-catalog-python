@@ -5,6 +5,12 @@ entry into a flat `CatalogModel`. This is the base the Python harness
 integrations (Hermes) build on. The TypeScript twin is
 `model-catalog-typescript`; both produce the same output for the same input.
 
+## Install
+
+```bash
+pip install vultr-model-catalog
+```
+
 No runtime dependencies. Python 3.11+.
 
 ```python
