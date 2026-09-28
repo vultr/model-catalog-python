@@ -25,7 +25,9 @@ for model in catalog.chat_models:
 
 - `load_catalog(...)`: fetch, normalize, fall back to the last good payload
   when the network fails. `catalog.source` is `network`, `cache` or
-  `stale-cache`. Raises `CatalogError` only when there is nothing to serve
+  `stale-cache`. Raises `CatalogError` only when there is nothing to serve.
+  `catalog.chat_models` and `catalog.agent_models` filter by `is_chat` and
+  `is_agent`
 - `fetch_catalog(...)`: the raw JSON payload. The catalog is public;
   `api_key` is optional
 - `parse_catalog(payload)`: documents plus `issues`. A bad entry is skipped
@@ -37,8 +39,11 @@ for model in catalog.chat_models:
 `input_modalities`, `output_modalities`, `pricing` (exact USD per token
 strings), `tools`, `structured_outputs`, `streaming`, `supported_parameters`,
 `parameters`, `reasoning`, `is_ready`, `deprecation_date`. `model.is_chat` is
-true when the model outputs text; rerankers and image generators are in the
-catalog too.
+true when the model outputs text; rerankers, embedders, image generators,
+transcription and decision models are in the catalog too. `model.is_agent` is
+true for the chat models a coding harness can drive: ready, with tool calling
+and a known context window. A safety classifier outputs text but calls no
+tools, so it is a chat model and not an agent model.
 
 See `docs/catalog.md` for the field mapping and the cache format.
 

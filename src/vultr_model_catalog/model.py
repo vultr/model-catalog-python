@@ -56,6 +56,11 @@ class CatalogModel:
         """A chat model produces text. Rerankers, embedders and image generators do not."""
         return "text" in self.output_modalities
 
+    @property
+    def is_agent(self) -> bool:
+        """A chat model a coding harness can drive: ready, calls tools, states its context window."""
+        return self.is_chat and self.is_ready and self.tools and self.context_window is not None
+
     def accepts_input(self, modality: str) -> bool:
         return modality in self.input_modalities
 

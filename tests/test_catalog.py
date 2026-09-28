@@ -72,6 +72,7 @@ def test_load_catalog_normalizes_a_network_payload_and_writes_the_cache(ok, payl
     assert catalog.fetched_at == 1_000
     assert len(catalog.models) == len(payload["data"])
     assert len(catalog.chat_models) == 15
+    assert len(catalog.agent_models) == 14
     assert catalog.issues == []
 
     written = json.loads(cache_path.read_text())

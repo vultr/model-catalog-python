@@ -36,12 +36,25 @@ def test_live_catalog_chat_model_fields_come_out_of_the_nested_modalities(load):
     assert "temperature" in model.parameters
 
 
-def test_live_catalog_rerankers_and_image_generators_are_not_chat_models(load):
+def test_live_catalog_non_text_models_are_not_chat_models(load):
     everything = models(load("vultr-catalog.json"))
     skipped = [model.id for model in everything if not model.is_chat]
-    assert "bge-reranker-v2-m3" in skipped
-    assert "z-image-turbo" in skipped
+    for model_id in ["bge-reranker-v2-m3", "qwen3-embedding-4b", "z-image-turbo", "whisper-large-v3-turbo", "mica-v0.1-4b"]:
+        assert model_id in skipped
+    assert next(m for m in everything if m.id == "mica-v0.1-4b").output_modalities == ["decision"]
     assert all(model.context_window is not None for model in everything if model.is_chat)
+
+
+def test_live_catalog_agent_models_are_the_chat_models_that_call_tools(load):
+    everything = models(load("vultr-catalog.json"))
+    classifier = next(m for m in everything if m.id == "nemotron-3.5-content-safety")
+    assert classifier.is_chat
+    assert classifier.tools is False
+    assert not classifier.is_agent
+    agents = [m for m in everything if m.is_agent]
+    assert any(m.id == "deepseek-v4-flash-0731" for m in agents)
+    assert all(m.is_chat and m.is_ready and m.tools and m.context_window is not None for m in agents)
+    assert len(agents) == len([m for m in everything if m.is_chat]) - 1
 
 
 def test_pricing_prefers_the_entry_without_a_utc_window(load):
@@ -77,6 +90,7 @@ def test_a_document_with_nothing_optional_still_normalizes(load):
     assert model.tools is False
     assert model.is_ready is True
     assert model.is_chat
+    assert not model.is_agent
 
 
 def test_bad_entries_are_skipped_and_reported_not_fatal(load):

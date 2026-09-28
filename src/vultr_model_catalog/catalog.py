@@ -37,6 +37,10 @@ class Catalog:
     def chat_models(self) -> list[CatalogModel]:
         return [model for model in self.models if model.is_chat]
 
+    @property
+    def agent_models(self) -> list[CatalogModel]:
+        return [model for model in self.models if model.is_agent]
+
 
 def models_url(base_url: str = DEFAULT_BASE_URL) -> str:
     return base_url.rstrip("/") + "/models"
