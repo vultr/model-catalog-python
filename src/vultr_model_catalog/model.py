@@ -107,12 +107,52 @@ def _modality(modalities: list[dict[str, Any]], kind: str) -> dict[str, Any]:
     return next((modality for modality in modalities if modality["type"] == kind), {})
 
 
+def _effort_values(descriptor: Any) -> tuple[bool, list[str] | None]:
+    """(known, efforts): known is False when the descriptor does not say; efforts is None when any effort is accepted."""
+    if not isinstance(descriptor, dict):
+        return False, None
+    if descriptor.get("type") == "unknown":
+        return True, None
+    values = descriptor.get("values")
+    if descriptor.get("type") == "enum" and isinstance(values, list):
+        return True, [value for value in values if isinstance(value, str)]
+    return False, None
+
+
+def _reasoning_support(parameters: dict[str, Any], root: Any) -> ReasoningSupport | None:
+    """The text output's supported_parameters carry the facts: reasoning_effort (enum, or unknown when
+    unrestricted) and reasoning (object whose properties hold effort, and max_tokens only when the budget
+    is enforced). The root reasoning object is a temporary extension that will go away, so it only answers
+    what the parameters do not: mandatory, the defaults, and any model whose parameters name no reasoning."""
+    effort = parameters.get("reasoning_effort")
+    reasoning = parameters.get("reasoning")
+    fallback = root if isinstance(root, dict) else None
+    if not isinstance(effort, dict) and not isinstance(reasoning, dict) and fallback is None:
+        return None
+    fallback = fallback or {}
+
+    properties = reasoning.get("properties") if isinstance(reasoning, dict) else None
+    properties = properties if isinstance(properties, dict) else None
+    known, efforts = _effort_values(effort)
+    if not known:
+        known, efforts = _effort_values(properties.get("effort") if properties is not None else None)
+
+    return ReasoningSupport(
+        mandatory=fallback.get("mandatory") is True,
+        default_effort=fallback.get("default_effort"),
+        default_enabled=fallback.get("default_enabled"),
+        supported_efforts=efforts if known else fallback.get("supported_efforts"),
+        supports_max_tokens=("max_tokens" in properties)
+        if properties is not None
+        else fallback.get("supports_max_tokens") is True,
+    )
+
+
 def normalize_model(document: ModelDocument) -> CatalogModel:
     text_in = _modality(document["input_modalities"], "text")
     text_out = _modality(document["output_modalities"], "text")
     supported_inputs = text_in.get("supported_inputs") or {}
     parameters = text_out.get("supported_parameters") or {}
-    reasoning = document.get("reasoning")
 
     return CatalogModel(
         id=document["id"],
@@ -138,15 +178,7 @@ def normalize_model(document: ModelDocument) -> CatalogModel:
         structured_outputs="response_format" in parameters or "structured_outputs" in parameters,
         streaming=text_out.get("streaming") is True,
         supported_parameters=list(parameters),
-        reasoning=ReasoningSupport(
-            mandatory=reasoning.get("mandatory") is True,
-            default_effort=reasoning.get("default_effort"),
-            default_enabled=reasoning.get("default_enabled"),
-            supported_efforts=reasoning.get("supported_efforts"),
-            supports_max_tokens=reasoning.get("supports_max_tokens") is True,
-        )
-        if isinstance(reasoning, dict)
-        else None,
+        reasoning=_reasoning_support(parameters, document.get("reasoning")),
         is_ready=document.get("is_ready") is not False,
         deprecation_date=document.get("deprecation_date"),
         parameters=parameters,
