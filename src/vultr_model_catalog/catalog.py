@@ -1,5 +1,8 @@
+import importlib.metadata
 import json
 import os
+import platform
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -13,7 +16,19 @@ from .parse import CatalogIssue, parse_catalog
 
 DEFAULT_BASE_URL = "https://api.vultrinference.com/v1"
 DEFAULT_TIMEOUT = 8.0
-USER_AGENT = "vultr-model-catalog"
+
+
+def _user_agent() -> str:
+    try:
+        version = importlib.metadata.version("vultr-model-catalog")
+    except importlib.metadata.PackageNotFoundError:
+        version = "unknown"
+    runtime = f"{platform.python_implementation()} {platform.python_version()}"
+    system = " ".join(part for part in (sys.platform, platform.machine()) if part)
+    return f"vultr-model-catalog/{version} (python; {runtime}; {system})"
+
+
+USER_AGENT = _user_agent()
 
 CatalogSource = Literal["network", "cache", "stale-cache"]
 
@@ -52,22 +67,36 @@ def _urlopen(url: str, headers: Mapping[str, str], timeout: float) -> bytes:
         return response.read()
 
 
+def _merge_headers(*layers: Mapping[str, str]) -> dict[str, str]:
+    # Header names are case-insensitive: a later layer replaces a name whatever its case.
+    merged: dict[str, tuple[str, str]] = {}
+    for layer in layers:
+        for name, value in layer.items():
+            merged[name.lower()] = (name, value)
+    return dict(merged.values())
+
+
 def fetch_catalog(
     *,
     base_url: str = DEFAULT_BASE_URL,
     api_key: str | None = None,
     timeout: float = DEFAULT_TIMEOUT,
     headers: Mapping[str, str] | None = None,
+    user_agent: str | None = None,
     transport: Transport | None = None,
 ) -> Any:
     """Return the raw JSON payload. Raise CatalogError on any transport or HTTP failure.
 
     The Vultr catalog is public; api_key is sent as a Bearer token when given.
+    user_agent is the caller's product token, sent ahead of the library's own.
     """
     url = models_url(base_url)
-    request_headers = {"Accept": "application/json", "User-Agent": USER_AGENT, **(headers or {})}
-    if api_key:
-        request_headers["Authorization"] = f"Bearer {api_key}"
+    agent = f"{user_agent} {USER_AGENT}" if user_agent else USER_AGENT
+    request_headers = _merge_headers(
+        {"Accept": "application/json", "User-Agent": agent},
+        headers or {},
+        {"Authorization": f"Bearer {api_key}"} if api_key else {},
+    )
     try:
         return json.loads((transport or _urlopen)(url, request_headers, timeout))
     except urllib.error.HTTPError as error:
@@ -109,6 +138,7 @@ def load_catalog(
     api_key: str | None = None,
     timeout: float = DEFAULT_TIMEOUT,
     headers: Mapping[str, str] | None = None,
+    user_agent: str | None = None,
     transport: Transport | None = None,
     cache_path: str | os.PathLike[str] | None = None,
     max_age: float = 0,
@@ -130,7 +160,12 @@ def load_catalog(
 
     try:
         payload = fetch_catalog(
-            base_url=base_url, api_key=api_key, timeout=timeout, headers=headers, transport=transport
+            base_url=base_url,
+            api_key=api_key,
+            timeout=timeout,
+            headers=headers,
+            user_agent=user_agent,
+            transport=transport,
         )
         catalog = build_catalog(payload, "network", now_ms)
     except (CatalogError, TypeError) as error:

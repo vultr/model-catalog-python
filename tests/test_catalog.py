@@ -1,9 +1,15 @@
 import json
+import platform
+import re
+import sys
+import tomllib
 import urllib.error
+from pathlib import Path
 
 import pytest
 
 from vultr_model_catalog import CatalogError, fetch_catalog, load_catalog, models_url
+from vultr_model_catalog.catalog import USER_AGENT
 
 
 class FakeTransport:
@@ -52,6 +58,48 @@ def test_fetch_catalog_sends_no_credentials_unless_given_a_key(ok):
     fetch_catalog(transport=keyed, api_key="secret", base_url="https://example.test/v1/")
     assert keyed.calls[0][0] == "https://example.test/v1/models"
     assert keyed.calls[0][1]["Authorization"] == "Bearer secret"
+
+
+def test_fetch_catalog_names_the_library_version_and_platform(ok):
+    transport = FakeTransport(ok)
+    fetch_catalog(transport=transport)
+    agent = re.fullmatch(
+        r"vultr-model-catalog/(?P<version>\S+) \(python; (?P<runtime>[^;]+); (?P<system>[^)]+)\)",
+        transport.calls[0][1]["User-Agent"],
+    )
+    assert agent is not None
+    pyproject = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
+    assert agent["version"] == pyproject["project"]["version"]
+    assert agent["runtime"] == f"{platform.python_implementation()} {platform.python_version()}"
+    assert agent["system"].split()[0] == sys.platform
+
+
+def test_fetch_and_load_catalog_put_the_callers_product_first(ok, cache_path):
+    fetched = FakeTransport(ok)
+    fetch_catalog(transport=fetched, user_agent="example-app/1.2")
+    assert fetched.calls[0][1]["User-Agent"] == f"example-app/1.2 {USER_AGENT}"
+
+    loaded = FakeTransport(ok)
+    load_catalog(transport=loaded, cache_path=cache_path, user_agent="example-app/1.2")
+    assert loaded.calls[0][1]["User-Agent"] == f"example-app/1.2 {USER_AGENT}"
+
+
+def test_fetch_catalog_merges_headers_whatever_their_case(ok):
+    transport = FakeTransport(ok)
+    fetch_catalog(
+        transport=transport,
+        api_key="secret",
+        user_agent="example-app/1.2",
+        headers={"accept": "text/plain", "user-agent": "custom/1", "authorization": "Bearer other", "X-Extra": "1"},
+    )
+    headers = transport.calls[0][1]
+    assert {name.lower(): value for name, value in headers.items()} == {
+        "accept": "text/plain",
+        "user-agent": "custom/1",
+        "authorization": "Bearer secret",
+        "x-extra": "1",
+    }
+    assert len(headers) == 4
 
 
 def test_fetch_catalog_turns_http_transport_and_json_failures_into_catalog_error():

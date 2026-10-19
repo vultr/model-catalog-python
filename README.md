@@ -29,7 +29,8 @@ for model in catalog.chat_models:
   `catalog.chat_models` and `catalog.agent_models` filter by `is_chat` and
   `is_agent`
 - `fetch_catalog(...)`: the raw JSON payload. The catalog is public;
-  `api_key` is optional
+  `api_key` is optional. `user_agent` puts the caller's product token ahead
+  of the library's own `User-Agent` (`docs/catalog.md`, Request)
 - `parse_catalog(payload)`: documents plus `issues`. A bad entry is skipped
   and reported, it never fails the catalog
 - `normalize_model(document)`: one `CatalogModel`
