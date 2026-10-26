@@ -90,7 +90,27 @@ def fetch_catalog(
     The Vultr catalog is public; api_key is sent as a Bearer token when given.
     user_agent is the caller's product token, sent ahead of the library's own.
     """
-    url = models_url(base_url)
+    return get_json(
+        models_url(base_url),
+        api_key=api_key,
+        timeout=timeout,
+        headers=headers,
+        user_agent=user_agent,
+        transport=transport,
+    )
+
+
+def get_json(
+    url: str,
+    *,
+    api_key: str | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
+    headers: Mapping[str, str] | None = None,
+    user_agent: str | None = None,
+    transport: Transport | None = None,
+) -> Any:
+    """GET a JSON document from the catalog's host with this library's headers. Raise CatalogError on any
+    transport or HTTP failure."""
     agent = f"{user_agent} {USER_AGENT}" if user_agent else USER_AGENT
     request_headers = _merge_headers(
         {"Accept": "application/json", "User-Agent": agent},

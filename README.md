@@ -35,11 +35,18 @@ for model in catalog.chat_models:
   and reported, it never fails the catalog
 - `normalize_model(document)`: one `CatalogModel`
 - `usd_per_million(cost_usd)`: exact conversion of a per-token price string
+- `model.output_of(type)`, `model.input_of(type)`: one modality of `outputs` /
+  `inputs`, or `None`
+- `load_media_catalog(...)`: the per-surface catalogs (image, video, music,
+  voices, tiers, price options and limits), one `ModelMedia` per model;
+  `fetch_media_payloads`, `build_media_catalog`, `speech_model_ids` and
+  `MEDIA_SOURCES` are its parts (`docs/catalog.md`, Media catalog)
 
 `CatalogModel` carries `context_window`, `max_output_tokens`,
 `input_modalities`, `output_modalities`, `pricing` (exact USD per token
 strings), `tools`, `structured_outputs`, `streaming`, `supported_parameters`,
-`parameters`, `reasoning`, `is_ready`, `deprecation_date`. `model.is_chat` is
+`parameters`, `reasoning`, `is_ready`, `deprecation_date`, and every modality
+as `outputs` and `inputs`. `model.is_chat` is
 true when the model outputs text; rerankers, embedders, image generators,
 transcription and decision models are in the catalog too. `model.is_agent` is
 true for the chat models a coding harness can drive: ready, with tool calling

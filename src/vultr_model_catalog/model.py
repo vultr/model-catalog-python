@@ -29,6 +29,28 @@ class ReasoningSupport:
 
 
 @dataclass(frozen=True, slots=True)
+class OutputSpec:
+    """One output modality as the document states it: its parameters (supported, and the model's own as
+    passthrough), prices and streaming. Media models live here: an image model's sizes, a speech model's voices."""
+
+    type: str
+    streaming: bool | None
+    max_length: dict[str, Any] | None
+    parameters: dict[str, Any]
+    passthrough_parameters: dict[str, Any]
+    pricing: list[dict[str, Any]]
+
+
+@dataclass(frozen=True, slots=True)
+class InputSpec:
+    """One input modality: what a request may carry of that type (supported_inputs as stated) and its prices."""
+
+    type: str
+    supported_inputs: dict[str, Any]
+    pricing: list[dict[str, Any]]
+
+
+@dataclass(frozen=True, slots=True)
 class CatalogModel:
     id: str
     name: str
@@ -50,6 +72,9 @@ class CatalogModel:
     is_ready: bool
     deprecation_date: str | None
     parameters: dict[str, Any] = field(default_factory=dict, compare=False)
+    # Every modality, in the document's order
+    outputs: list[OutputSpec] = field(default_factory=list)
+    inputs: list[InputSpec] = field(default_factory=list)
 
     @property
     def is_chat(self) -> bool:
@@ -63,6 +88,14 @@ class CatalogModel:
 
     def accepts_input(self, modality: str) -> bool:
         return modality in self.input_modalities
+
+    def output_of(self, modality: str) -> OutputSpec | None:
+        """The output of a type, or None when the model makes none."""
+        return next((output for output in self.outputs if output.type == modality), None)
+
+    def input_of(self, modality: str) -> InputSpec | None:
+        """The input of a type, or None when the model reads none."""
+        return next((item for item in self.inputs if item.type == modality), None)
 
     def price_per_million(self) -> dict[str, float | None]:
         """USD per million tokens, the unit every harness model picker wants."""
@@ -83,6 +116,39 @@ def _limit(value: Any) -> int | None:
     if isinstance(number, bool) or not isinstance(number, (int, float)) or not math.isfinite(number):
         return None
     return int(number) if number == int(number) else None
+
+
+def _is_number(value: Any) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value)
+
+
+def _descriptors(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _entries(value: Any) -> list[dict[str, Any]]:
+    return [entry for entry in value if isinstance(entry, dict)] if isinstance(value, list) else []
+
+
+def _output_spec(modality: dict[str, Any]) -> OutputSpec:
+    max_length = modality.get("max_length")
+    streaming = modality.get("streaming")
+    return OutputSpec(
+        type=modality["type"],
+        streaming=streaming if isinstance(streaming, bool) else None,
+        max_length=max_length if isinstance(max_length, dict) and _is_number(max_length.get("value")) else None,
+        parameters=_descriptors(modality.get("supported_parameters")),
+        passthrough_parameters=_descriptors(modality.get("passthrough_parameters")),
+        pricing=_entries(modality.get("pricing")),
+    )
+
+
+def _input_spec(modality: dict[str, Any]) -> InputSpec:
+    return InputSpec(
+        type=modality["type"],
+        supported_inputs=_descriptors(modality.get("supported_inputs")),
+        pricing=_entries(modality.get("pricing")),
+    )
 
 
 def _is_windowed(entry: dict[str, Any]) -> bool:
@@ -182,4 +248,6 @@ def normalize_model(document: ModelDocument) -> CatalogModel:
         is_ready=document.get("is_ready") is not False,
         deprecation_date=document.get("deprecation_date"),
         parameters=parameters,
+        outputs=[_output_spec(modality) for modality in document["output_modalities"]],
+        inputs=[_input_spec(modality) for modality in document["input_modalities"]],
     )
