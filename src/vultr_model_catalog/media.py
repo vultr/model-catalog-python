@@ -51,6 +51,8 @@ class ModelMedia:
     quality_tiers: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     price_options: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     rate_limits: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # By input modality (image, video, audio), from the public shape: what one chat request may carry
+    input_limits: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Language-neutral form. The TypeScript library emits the same from toCanonicalMedia();
@@ -127,13 +129,14 @@ def build_media_catalog(payloads: Mapping[str, Any], source: CatalogSource, fetc
 
     ids = set(images) | set(videos) | set(music) | set(speech)
     for model_id, entry in public.items():
-        if any(isinstance(entry.get(key), dict) and entry[key] for key in ("quality_tiers", "price_options", "rate_limits")):
+        if any(isinstance(entry.get(key), dict) and entry[key] for key in ("quality_tiers", "price_options", "rate_limits", "input_limits")):
             ids.add(model_id)
 
     models = []
     for model_id in sorted(ids):
         entry = public.get(model_id, {})
         rate_limits = entry.get("rate_limits")
+        input_limits = entry.get("input_limits")
         models.append(
             ModelMedia(
                 id=model_id,
@@ -145,6 +148,9 @@ def build_media_catalog(payloads: Mapping[str, Any], source: CatalogSource, fetc
                 price_options=_keyed_lists(entry.get("price_options")),
                 rate_limits={kind: limits for kind, limits in rate_limits.items() if isinstance(limits, dict)}
                 if isinstance(rate_limits, dict)
+                else {},
+                input_limits={kind: limits for kind, limits in input_limits.items() if isinstance(limits, dict)}
+                if isinstance(input_limits, dict)
                 else {},
             )
         )

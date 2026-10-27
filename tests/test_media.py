@@ -58,6 +58,13 @@ def test_one_record_per_model_with_each_surfaces_entry(payloads):
     assert by_id["minimax-music3"].music
     assert by_id["glm-5.3"].image is None
     assert by_id["glm-5.3"].rate_limits["text"]
+    # ... and what one request may carry of each media input, with a count where its engine sets one
+    assert by_id["nemotron-3-nano-omni-30b-a3b-reasoning"].input_limits == {
+        "image": {"max_items": 1, "max_bytes": 20971520},
+        "audio": {"max_items": 1, "max_bytes": 52428800},
+        "video": {"max_items": 1, "max_bytes": 52428800},
+    }
+    assert by_id["glm-5.3"].input_limits["image"] == {"max_bytes": 20971520}
 
 
 def test_the_speech_models_are_the_public_shapes_entries_with_voices(load):
