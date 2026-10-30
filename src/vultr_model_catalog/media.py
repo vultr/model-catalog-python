@@ -41,6 +41,13 @@ class SpeechRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class AlignmentRecord:
+    """The public shape's entry for a model whose output is an alignment (POST /v1/audio/alignments)."""
+
+    languages: list[str]
+
+
+@dataclass(frozen=True, slots=True)
 class ModelMedia:
     id: str
     image: dict[str, Any] | None
@@ -53,6 +60,7 @@ class ModelMedia:
     rate_limits: dict[str, dict[str, Any]] = field(default_factory=dict)
     # By input modality (image, video, audio), from the public shape: what one chat request may carry
     input_limits: dict[str, dict[str, Any]] = field(default_factory=dict)
+    alignment: AlignmentRecord | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Language-neutral form. The TypeScript library emits the same from toCanonicalMedia();
@@ -103,6 +111,17 @@ def _speech_record(payload: Any, source: str, issues: list[MediaIssue]) -> Speec
     return SpeechRecord(voices, [language for language in languages if isinstance(language, str)] if isinstance(languages, list) else [])
 
 
+def _strings(value: Any) -> list[str]:
+    return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
+
+
+def _alignment_record(entry: dict[str, Any]) -> AlignmentRecord | None:
+    architecture = entry.get("architecture")
+    if not isinstance(architecture, dict) or "alignment" not in _strings(architecture.get("output_modalities")):
+        return None
+    return AlignmentRecord(_strings(entry.get("supported_languages")))
+
+
 def speech_model_ids(public_payload: Any) -> list[str]:
     """The speech models the public shape names: those with a voice list."""
     data = public_payload.get("data") if isinstance(public_payload, dict) else None
@@ -131,6 +150,8 @@ def build_media_catalog(payloads: Mapping[str, Any], source: CatalogSource, fetc
     for model_id, entry in public.items():
         if any(isinstance(entry.get(key), dict) and entry[key] for key in ("quality_tiers", "price_options", "rate_limits", "input_limits")):
             ids.add(model_id)
+        if _alignment_record(entry) is not None:
+            ids.add(model_id)
 
     models = []
     for model_id in sorted(ids):
@@ -152,6 +173,7 @@ def build_media_catalog(payloads: Mapping[str, Any], source: CatalogSource, fetc
                 input_limits={kind: limits for kind, limits in input_limits.items() if isinstance(limits, dict)}
                 if isinstance(input_limits, dict)
                 else {},
+                alignment=_alignment_record(entry),
             )
         )
     return MediaCatalog(models, issues, source, fetched_at)

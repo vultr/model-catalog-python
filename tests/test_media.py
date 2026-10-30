@@ -3,6 +3,7 @@ import json
 import pytest
 
 from vultr_model_catalog import (
+    AlignmentRecord,
     CatalogError,
     MediaIssue,
     build_media_catalog,
@@ -69,6 +70,17 @@ def test_one_record_per_model_with_each_surfaces_entry(payloads):
 
 def test_the_speech_models_are_the_public_shapes_entries_with_voices(load):
     assert speech_model_ids(load("media/public-models.json")) == SPEECH
+
+
+def test_an_alignment_model_is_named_only_by_the_public_shape_with_its_languages():
+    aligner = {
+        "id": "aligner-1",
+        "architecture": {"input_modalities": ["audio", "text"], "output_modalities": ["alignment"]},
+        "supported_languages": ["en", "ja", 3],
+    }
+    chat = {"id": "chat", "architecture": {"output_modalities": ["text"]}, "supported_languages": ["en"]}
+    models = build_media_catalog({"public": {"data": [aligner, chat]}}, "network", 0).models
+    assert [(model.id, model.alignment) for model in models] == [("aligner-1", AlignmentRecord(["en", "ja"]))]
 
 
 def test_a_malformed_payload_or_entry_is_an_issue_never_a_failure():

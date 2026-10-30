@@ -14,6 +14,7 @@ from .catalog import (
 )
 from .media import (
     MEDIA_SOURCES,
+    AlignmentRecord,
     MediaCatalog,
     MediaIssue,
     ModelMedia,
@@ -32,6 +33,7 @@ __all__ = [
     "DEFAULT_TIMEOUT",
     "MEDIA_SOURCES",
     "SCHEMA_VERSION",
+    "AlignmentRecord",
     "Catalog",
     "CatalogError",
     "CatalogIssue",

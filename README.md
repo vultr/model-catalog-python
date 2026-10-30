@@ -38,7 +38,8 @@ for model in catalog.chat_models:
 - `model.output_of(type)`, `model.input_of(type)`: one modality of `outputs` /
   `inputs`, or `None`
 - `load_media_catalog(...)`: the per-surface catalogs (image, video, music,
-  voices, tiers, price options and limits), one `ModelMedia` per model;
+  voices, tiers, price options, limits and alignment languages), one
+  `ModelMedia` per model, its alignment an `AlignmentRecord`;
   `fetch_media_payloads`, `build_media_catalog`, `speech_model_ids` and
   `MEDIA_SOURCES` are its parts (`docs/catalog.md`, Media catalog)
 
