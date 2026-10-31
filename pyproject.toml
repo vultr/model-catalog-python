@@ -1,6 +1,6 @@
 [project]
 name = "vultr-model-catalog"
-version = "0.0.3"
+version = "0.0.4"
 description = "Fetch and normalize a Model Document 2.4 catalog (Vultr Inference /v1/models)"
 readme = "README.md"
 license = "MIT"
