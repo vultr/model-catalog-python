@@ -46,10 +46,3 @@ Human overview: `README.md`. Field mapping, tolerance and cache format:
 - Nothing mutable at module level. Models are frozen dataclasses
 - Network access goes through the `Transport` callable so tests never touch
   the network
-- Put lasting explanation in `docs/`, not in the source. If a comment is
-  needed, make it short. Docs describe current behavior, not history
-- Write commit messages to the Conventional Commits spec
-- No em dashes or en dashes anywhere: prose, comments, commit messages and
-  docs use plain hyphens, `·`, or `:`
-- No AI trailers on commits (`Co-Authored-By`, `Generated with`, ...)
-- Never force-push; never rewrite pushed history
