@@ -33,10 +33,20 @@ Human overview: `README.md`. Field mapping, tolerance and cache format:
   with `usd_per_million`, which goes through `Decimal`. Do not multiply
   floats: `0.0000001 * 1e6` is `0.09999999999999999`
 
+## Validation
+
+Fast (inner loop):
+- `uv run pytest tests/test_<name>.py -x` - one test file
+- `uv run pytest --lf -x` - only what failed last run
+
+Full (once, before calling a change complete):
+- `uv run pytest -q` must pass
+
+Heavy (never in the inner loop; run once at the end in the background):
+- the floor, which must pass too: `uv run --python 3.11 --isolated pytest -q`
+
 ## Working here
 
-- `uv run pytest -q` must pass, and on the floor too:
-  `uv run --python 3.11 --isolated pytest -q`
 - After a normalization change lands in the TypeScript repo, copy its
   `fixtures/*.json` here and run the tests
 - The cache file format is shared with the TypeScript library. Changing it
